@@ -255,6 +255,93 @@ void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
     }
 }
 
+void matrix_times_constant(double** matrix, int m, int n, int constant) {
+    int i, j;
+    for (i = 0; i < m; i++) {
+        for (j = 0; j < n; j++) {
+            matrix[i][j] *= constant;
+        }
+    }
+}
+
+void matrix_squared_elementwise(double** matrix, int m, int n) {
+    int i, j;
+    for (i = 0; i < m; i++) {
+        for (j = 0; j < n; j++) {
+            matrix[i][j] *= matrix[i][j];
+        }
+    }
+}
+
+void get_backprop_data(BackPropData* bpd) {
+    return;
+}
+
+void adam_optimizer(FullyConnectedLayer* fcl) {
+    int t;
+    double VdW[fcl->height][fcl->width][fcl->depth];
+    double SdW[fcl->height][fcl->width][fcl->depth];
+    double Vdb[fcl->width][fcl->depth];
+    double Sdb[fcl->width][fcl->depth];
+
+    double VdWcorr[fcl->height][fcl->width][fcl->depth];
+    double SdWcorr[fcl->height][fcl->width][fcl->depth];
+    double Vdbcorr[fcl->width][fcl->depth];
+    double Sdbcorr[fcl->width][fcl->depth];
+
+    int h, w, d;
+    for (d = 0; d < fcl->depth; d++) {
+        for (w = 0; w < fcl->width; w++) {
+            for (h = 0; h < fcl->height; h++) {
+                VdW[h][w][d] = 0.0;
+                SdW[h][w][d] = 0.0;
+            }
+            Vdb[w][d] = 0.0;
+            Sdb[w][d] = 0.0;
+        }
+    }
+
+    for (t = 0; t < NUMBER_OF_ITERATIONS; t++) {
+        BackPropData bpd;
+        get_backprop_data(&bpd);
+
+        for (d = 0; d < fcl->depth; d++) {
+            for (w = 0; w < fcl->width; w++) {
+                for (h = 0; h < fcl->height; h++) {
+                    VdW[h][w][d] = BETA_1 * VdW[h][w][d] + (1 - BETA_1) * bpd.d_weights[h][w][d];
+                    SdW[h][w][d] = BETA_2 * SdW[h][w][d] + (1 - BETA_2) * bpd.d_weights[h][w][d] * bpd.d_weights[h][w][d];
+                }
+                Vdb[w][d] = BETA_1 * Vdb[w][d] + (1 - BETA_1) * bpd.d_biases[w][d];
+                Sdb[w][d] = BETA_2 * Sdb[w][d] + (1 - BETA_2) * bpd.d_biases[w][d] * bpd.d_biases[w][d];
+            }
+        }
+
+        // "correction"
+        double beta1_corr = 1.0 / (1 - pow(BETA_1, t));
+        double beta2_corr = 1.0 / (1 - pow(BETA_2, t));
+        for (d = 0; d < fcl->depth; d++) {
+            for (w = 0; w < fcl->width; w++) {
+                for (h = 0; h < fcl->height; h++) {
+                    VdWcorr[h][w][d] = VdW[h][w][d] * beta1_corr;
+                    SdWcorr[h][w][d] = SdW[h][w][d] * beta2_corr;
+                }
+                Vdbcorr[w][d] = Vdb[w][d] * beta1_corr;
+                Sdbcorr[w][d] = Sdb[w][d] * beta2_corr;
+            }
+        }
+
+        // aktualizacja sieci neuronowej
+        for (d = 0; d < fcl->depth; d++) {
+            for (w = 0; w < fcl->width; w++) {
+                for (h = 0; h < fcl->height; h++) {
+                    fcl->weights[h][w][d] = fcl->weights[h][w][d] - ALPHA * VdWcorr[h][w][d] / (sqrt(SdWcorr[h][w][d]) + EPSILON);
+                }
+                fcl->biases[w][d] = fcl->biases[w][d] - ALPHA * Vdbcorr[w][d] / (sqrt(Sdbcorr[w][d]) + EPSILON);
+            }
+        }
+    }
+}
+
 void print(ConvolutionalBox* convBox) {
     int i, j, k;
     for (k = 0; k < convBox->depth; k++) {
