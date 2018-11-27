@@ -13,6 +13,13 @@
 #define MAX_FCL_WIDTH          40
 #define MAX_FCL_DEPTH          40
 
+// Adam Optimizer constants
+#define BETA_1                 0.9
+#define BETA_2                 0.999
+#define EPSILON                0.00000001
+#define ALPHA                  0.001
+#define NUMBER_OF_ITERATIONS   10
+
 
 // Struktury danych
 
@@ -37,8 +44,8 @@ typedef struct ConvolutionalBox {
 } ConvolutionalBox;
 
 typedef struct FullyConnectedLayer {
-    int width;
     int height;
+    int width;
     int depth;
 
     double weights[MAX_FCL_HEIGHT][MAX_FCL_WIDTH][MAX_FCL_DEPTH];
@@ -56,8 +63,8 @@ typedef struct ForwardPropData {
 } ForwardPropData;
 
 typedef struct BackPropData {
-    int width;
     int height;
+    int width;
     int depth;
 
     double d_weights[MAX_FCL_WIDTH][MAX_FCL_HEIGHT][MAX_FCL_DEPTH];
@@ -79,6 +86,10 @@ void flatten(ConvolutionalBox* convBox, Vector *vector);
 void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, ForwardPropData* fpd);
 void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd, FullyConnectedLayer* fcl, Vector* prediction);
 double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, double alpha);
+void get_backprop_data(BackPropData* bpd);
+void adam_optimizer(FullyConnectedLayer* fcl);
+void matrix_times_constant(double** matrix, int m, int n, int constant);
+void matrix_squared_elementwise(double** matrix, int m, int n);
 void print(ConvolutionalBox* convBox);
 
 #endif // UTILS_H
