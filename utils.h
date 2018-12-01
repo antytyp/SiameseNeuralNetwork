@@ -13,13 +13,15 @@
 #define MAX_FCL_WIDTH          40
 #define MAX_FCL_DEPTH          40
 
-// Adam Optimizer constants
+// Adam Optimizer hyperparameters
 #define BETA_1                 0.9
 #define BETA_2                 0.999
-#define EPSILON                0.00000001
+#define EPSILON                0.000001
 #define ALPHA                  0.001
 #define NUMBER_OF_ITERATIONS   10
 
+// Triplet function hyperparameter
+#define TRIPLET_ALPHA          0.5
 
 // Struktury danych
 
@@ -56,7 +58,6 @@ typedef struct ForwardPropData {
     int height;
     int depth;
 
-    // tutaj najpierw podaje "glebokosc"
     double results[MAX_FCL_DEPTH + 1][MAX_FCL_HEIGHT];
     // act = sigmoid(results)
     double activations[MAX_FCL_DEPTH + 1][MAX_FCL_HEIGHT];

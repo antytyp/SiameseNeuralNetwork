@@ -83,7 +83,6 @@ void sigmoid_derivative(int size, double* entries) {
 /* Operacja konwolucji */
 // ConvolutionalBox -> ConvolutionalBox
 void conv2D(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, Filter* filter, int stride) {
-    // wymagam, zeby ponizsze dzielenie zachodzilo bez reszty...
     if (stride > filter->size
       || (convBox->width - filter->size) % stride != 0
       || (convBox->height - filter->size) % stride != 0) {
@@ -116,9 +115,7 @@ void conv2D(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, Filter* 
 
 /* max pooling */
 // ConvolutionalBox -> ConvolutionalBox
-// ogarnąć wzór w sprawku
 void max_pooling(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, int stride) {
-    // wymagam, zeby ponizsze dzielenie zachodzilo bez reszty...
     if (stride > convBox->width || stride > convBox->height
       || (convBox->width - POOL_SIZE) % stride!= 0
       || (convBox->height - POOL_SIZE) % stride != 0) {
@@ -162,12 +159,12 @@ void flatten(ConvolutionalBox* convBox, Vector *vector) {
                 }
             }
         }
-    } // else { print cos tam }
+    }
 }
 
-double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, double alpha) {
+double triplet_loss(Vector* anchor, Vector* positive, Vector* negative) {
     // anchor, positive, negative - encodings
-    // alpha - hyperparameter, > 0
+    // TRIPLET_ALPHA - hyperparameter, > 0
 
     double positive_dist = 0.0;
     double negative_dist = 0.0;
@@ -176,7 +173,7 @@ double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, double a
         positive_dist += (anchor->entries[i] - positive->entries[i]) * (anchor->entries[i] - positive->entries[i]);
         negative_dist += (anchor->entries[i] - negative->entries[i]) * (anchor->entries[i] - negative->entries[i]);
     }
-    double loss = positive_dist - negative_dist + alpha;
+    double loss = positive_dist - negative_dist + TRIPLET_ALPHA;
     if (loss > 0.0) {
         return loss;
     }
@@ -201,7 +198,6 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl,
     sigmoid(fpd->height, fpd->activations[0]);
 
     for (d = 0; d < fcl->depth; d++) {
-        // jestesmy w warstwie d
         for (h = 0; h < fcl->height; h++) {
             fpd->results[d + 1][h] = 0.0;
             for (w = 0; w < fcl->width; w++) {
@@ -224,7 +220,6 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl,
 void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
                      FullyConnectedLayer* fcl, Vector* prediction) {
     int l, h, w;
-    // double sum;
 
     double d_results[fpd->height];
     double d_activations[fpd->height];
@@ -236,13 +231,10 @@ void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
         }
 
         for (h = 0; h < fpd->height; h++) {
-            // sum = 0.0;
             for (w = 0; w < fpd->height; w++) {
                 bpd->d_weights[h][w][l] = 1 / m * d_results[h] * fpd->activations[l][w];
-                // sum += d_results[h];
             }
-            // bpd->d_biases[h][l] = 1 / m * sum;
-            bpd->d_biases[h][l] = d_results[h]; //??
+            bpd->d_biases[h][l] = d_results[h];
         }
 
         for (h = 0; h < fpd->height; h++) {

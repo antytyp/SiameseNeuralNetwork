@@ -22,8 +22,6 @@ void test_relu() {
 
     int i, passed = 1;
     for(i = 0; i < 5; i++) {
-        // printf("%f, %f", v1.entries[i], expected.entries[i]);
-        // printf("\n");
         if (v1.entries[i] != expected.entries[i]) {
             passed = 0;
         }
@@ -64,7 +62,6 @@ void test_convbox_relu() {
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {
             for (k = 0; k < 2; k++) {
-                // printf("%f, %f\n", convBox.entries[i][j][k], expectedConvBox.entries[i][j][k]);
                 if (convBox.entries[i][j][k] != expectedConvBox.entries[i][j][k]) {
                     passed = 0;
                 }
@@ -136,7 +133,6 @@ void test_conv2D() {
     conv2D(&convBox, &resultConvBox, &filter, 1);
 
     /* expected = {{8,20},{9,6}}, {{2,2},{1,1}}, {{1,-3},{-2,4}}, {{1,0},{0,1}}*/
-    // print(&resultConvBox);
     int i, j, k, passed = 1;
     for (k = 0; k < resultConvBox.depth; k++) {
         for (i = 0; i < resultConvBox.width; i++) {
@@ -191,13 +187,11 @@ void test_max_pooling() {
     max_pooling(&convBox, &resultConvBox, 1);
 
     /* expected = {{5,6},{7,8}}, {{1,0},{0,1}}*/
-    // print(&resultConvBox);
     int i, j, k, passed = 1;
     for (k = 0; k < resultConvBox.depth; k++) {
         for (i = 0; i < resultConvBox.width; i++) {
             for (j = 0; j < resultConvBox.height; j++) {
                 if (resultConvBox.entries[i][j][k] != expected.entries[i][j][k]) {
-                    // printf("%f, %f\n",resultConvBox.entries[i][j][k], expected.entries[i][j][k] );
                     passed = 0;
                 }
             }
@@ -227,8 +221,6 @@ void test_sigmoid() {
 
     int i, passed = 1;
     for(i = 0; i < 5; i++) {
-        // printf("%f, %f", v.entries[i], expected.entries[i]);
-        // printf("\n");
         if ((v.entries[i] - expected.entries[i]) > 0.000001) {
             passed = 0;
         }
@@ -287,7 +279,6 @@ void test_flatten() {
 
     int i, passed = 1;
     for(i = 0; i < result.size; i++) {
-        // printf("%f , %f \n", result.entries[i], expected.entries[i]);
         if (result.entries[i] != expected.entries[i]) {
             passed = 0;
         }
@@ -295,7 +286,6 @@ void test_flatten() {
     print_result("Flatten test", passed);
 }
 
-// te funkcja moglbym najpierw przeliczyc na kartce ...... <bo nie chce mockowac sigmoid
 void test_dense() {
     Vector vector_in;
     vector_in.size = 2;
@@ -408,8 +398,6 @@ void test_backprop() {
     }
     print_result("Backprop test", passed);
 }
-
-// jakis test pod triplet_loss?
 
 int main() {
 
