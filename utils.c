@@ -162,26 +162,42 @@ void flatten(ConvolutionalBox* convBox, Vector *vector) {
     }
 }
 
-double triplet_loss(Vector* anchor, Vector* positive, Vector* negative) {
+double simple_loss(Vector* anchor, Vector* prediction, Vector* costs) {
+    int i;
+    double loss = 0.0;
+    for (i = 0; i < anchor->size; i++) {
+        costs->entries[i] = prediction->entries[i] - anchor->entries[i];
+        loss += costs->entries[i] * costs->entries[i];
+    }
+    return loss;
+}
+
+double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* costs) {
     // anchor, positive, negative - encodings
     // TRIPLET_ALPHA - hyperparameter, > 0
 
     double positive_dist = 0.0;
     double negative_dist = 0.0;
     int i;
+    double loss = 0.0;
     for (i = 0; i < anchor->size; i++) {
-        positive_dist += (anchor->entries[i] - positive->entries[i]) * (anchor->entries[i] - positive->entries[i]);
-        negative_dist += (anchor->entries[i] - negative->entries[i]) * (anchor->entries[i] - negative->entries[i]);
+        positive_dist = (anchor->entries[i] - positive->entries[i]) * (anchor->entries[i] - positive->entries[i]);
+        negative_dist = (anchor->entries[i] - negative->entries[i]) * (anchor->entries[i] - negative->entries[i]);
+        loss += positive_dist;
+        loss -= negative_dist;
+        costs->entries[i] = positive_dist - negative_dist + TRIPLET_ALPHA;
+        loss += costs->entries[i] * costs->entries[i];
+        if (costs->entries[i] < 0) costs->entries[i] = 0.0;
     }
-    double loss = positive_dist - negative_dist + TRIPLET_ALPHA;
-    if (loss > 0.0) {
-        return loss;
+    loss += TRIPLET_ALPHA;
+    if (loss > 0) {
+       loss = 0.0;
     }
-    return 0.0;
+    // printf("Current loss: %f\n", loss);
+    return loss;
 }
 
-void dense(Vector* vector_in, FullyConnectedLayer* fcl,
-           Vector* vector_out, ForwardPropData* fpd) {
+void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, ForwardPropData* fpd) {
     if (vector_in->size != fcl->width) {
         printf("przyps");
         return;
@@ -190,7 +206,7 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl,
 
     int w, h, d, i;
 
-    // potrzebne do backprop
+    //needed by backprop
     for (i = 0; i < vector_in->size; i++) {
         fpd->results[0][i] = vector_in->entries[i];
         fpd->activations[0][i] = vector_in->entries[i];
@@ -220,7 +236,6 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl,
 void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
                      FullyConnectedLayer* fcl, Vector* prediction) {
     int l, h, w;
-
     double d_results[fpd->height];
     double d_activations[fpd->height];
 
@@ -242,7 +257,7 @@ void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
             for (w = 0; w < fpd->height; w++) {
                 d_activations[h] += fcl->weights[w][h][l] * d_results[w];
             }
-            prediction->entries[h] = d_activations[h]; // to zostanie wykorzystane w nastepnej warstwie
+            prediction->entries[h] = d_activations[h]; // this is going to be used in next layer
         }
     }
 }
@@ -265,26 +280,33 @@ void matrix_squared_elementwise(double** matrix, int m, int n) {
     }
 }
 
-void get_backprop_data(BackPropData* bpd) {
-    return;
+void train(Model* model) {
+    conv2D(&model->convBox1, &model->convBox2, &model->filter1, model->stride1);
+    max_pooling(&model->convBox2, &model->convBox3, model->stride2);
+    flatten(&model->convBox3, &model->vector);
+    dense(&model->vector, &model->fcl, &model->encoding, &model->fpd);
+    simple_loss(&model->anchor, &model->encoding, &model->costs);
+    int m = 1; // 1 training sample
+    backpropagation(m, &model->fpd, &model->bpd, &model->fcl, &model->costs);
 }
 
-void adam_optimizer(FullyConnectedLayer* fcl) {
+void adam_optimizer(Model* model) {
     int t;
-    double VdW[fcl->height][fcl->width][fcl->depth];
-    double SdW[fcl->height][fcl->width][fcl->depth];
-    double Vdb[fcl->width][fcl->depth];
-    double Sdb[fcl->width][fcl->depth];
+   
+    double VdW[model->fcl.height][model->fcl.width][model->fcl.depth];
+    double SdW[model->fcl.height][model->fcl.width][model->fcl.depth];
+    double Vdb[model->fcl.width][model->fcl.depth];
+    double Sdb[model->fcl.width][model->fcl.depth];
 
-    double VdWcorr[fcl->height][fcl->width][fcl->depth];
-    double SdWcorr[fcl->height][fcl->width][fcl->depth];
-    double Vdbcorr[fcl->width][fcl->depth];
-    double Sdbcorr[fcl->width][fcl->depth];
+    double VdWcorr[model->fcl.height][model->fcl.width][model->fcl.depth];
+    double SdWcorr[model->fcl.height][model->fcl.width][model->fcl.depth];
+    double Vdbcorr[model->fcl.width][model->fcl.depth];
+    double Sdbcorr[model->fcl.width][model->fcl.depth];
 
     int h, w, d;
-    for (d = 0; d < fcl->depth; d++) {
-        for (w = 0; w < fcl->width; w++) {
-            for (h = 0; h < fcl->height; h++) {
+    for (d = 0; d < model->fcl.depth; d++) {
+        for (w = 0; w < model->fcl.width; w++) {
+            for (h = 0; h < model->fcl.height; h++) {
                 VdW[h][w][d] = 0.0;
                 SdW[h][w][d] = 0.0;
             }
@@ -293,27 +315,29 @@ void adam_optimizer(FullyConnectedLayer* fcl) {
         }
     }
 
-    for (t = 0; t < NUMBER_OF_ITERATIONS; t++) {
-        BackPropData bpd;
-        get_backprop_data(&bpd);
+    for (t = 1; t < NUMBER_OF_ITERATIONS; t++) {
+        train(model);
+    	if(t%100 == 1) {
+      	   printf("[%f, %f, %f], \n", model->encoding.entries[0], model->encoding.entries[1], model->encoding.entries[2]);
+    	}
 
-        for (d = 0; d < fcl->depth; d++) {
-            for (w = 0; w < fcl->width; w++) {
-                for (h = 0; h < fcl->height; h++) {
-                    VdW[h][w][d] = BETA_1 * VdW[h][w][d] + (1 - BETA_1) * bpd.d_weights[h][w][d];
-                    SdW[h][w][d] = BETA_2 * SdW[h][w][d] + (1 - BETA_2) * bpd.d_weights[h][w][d] * bpd.d_weights[h][w][d];
+        for (d = 0; d < model->fcl.depth; d++) {
+            for (w = 0; w < model->fcl.width; w++) {
+                for (h = 0; h < model->fcl.height; h++) {
+                    VdW[h][w][d] = BETA_1 * VdW[h][w][d] + (1 - BETA_1) * model->bpd.d_weights[h][w][d];
+                    SdW[h][w][d] = BETA_2 * SdW[h][w][d] + (1 - BETA_2) * model->bpd.d_weights[h][w][d] * model->bpd.d_weights[h][w][d];               
                 }
-                Vdb[w][d] = BETA_1 * Vdb[w][d] + (1 - BETA_1) * bpd.d_biases[w][d];
-                Sdb[w][d] = BETA_2 * Sdb[w][d] + (1 - BETA_2) * bpd.d_biases[w][d] * bpd.d_biases[w][d];
+                Vdb[w][d] = BETA_1 * Vdb[w][d] + (1 - BETA_1) * model->bpd.d_biases[w][d];
+                Sdb[w][d] = BETA_2 * Sdb[w][d] + (1 - BETA_2) * model->bpd.d_biases[w][d] * model->bpd.d_biases[w][d];
             }
         }
 
         // "correction"
         double beta1_corr = 1.0 / (1 - pow(BETA_1, t));
         double beta2_corr = 1.0 / (1 - pow(BETA_2, t));
-        for (d = 0; d < fcl->depth; d++) {
-            for (w = 0; w < fcl->width; w++) {
-                for (h = 0; h < fcl->height; h++) {
+        for (d = 0; d < model->fcl.depth; d++) {
+            for (w = 0; w < model->fcl.width; w++) {
+                for (h = 0; h < model->fcl.height; h++) {
                     VdWcorr[h][w][d] = VdW[h][w][d] * beta1_corr;
                     SdWcorr[h][w][d] = SdW[h][w][d] * beta2_corr;
                 }
@@ -322,16 +346,20 @@ void adam_optimizer(FullyConnectedLayer* fcl) {
             }
         }
 
-        // aktualizacja sieci neuronowej
-        for (d = 0; d < fcl->depth; d++) {
-            for (w = 0; w < fcl->width; w++) {
-                for (h = 0; h < fcl->height; h++) {
-                    fcl->weights[h][w][d] = fcl->weights[h][w][d] - ALPHA * VdWcorr[h][w][d] / (sqrt(SdWcorr[h][w][d]) + EPSILON);
+        // neural net update
+        for (d = 0; d < model->fcl.depth; d++) {
+            for (w = 0; w < model->fcl.width; w++) {
+                for (h = 0; h < model->fcl.height; h++) {
+                    model->fcl.weights[h][w][d] = model->fcl.weights[h][w][d] - ALPHA * (VdWcorr[h][w][d] / (sqrt(SdWcorr[h][w][d]) + EPSILON));
                 }
-                fcl->biases[w][d] = fcl->biases[w][d] - ALPHA * Vdbcorr[w][d] / (sqrt(Sdbcorr[w][d]) + EPSILON);
+                model->fcl.biases[w][d] = model->fcl.biases[w][d] - ALPHA * (Vdbcorr[w][d] / (sqrt(Sdbcorr[w][d]) + EPSILON));
             }
         }
     }
+    /* printf("\nEncoding\n");
+    for (i = 0; i < 3; i++) {
+	printf("%f, ", model->encoding.entries[i]);
+    } */
 }
 
 void print(ConvolutionalBox* convBox) {
