@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include "utils.h"
 
+int global = 0;
+
 void red() {
   printf("\033[1;31m");
 }
@@ -169,9 +171,18 @@ double simple_loss(Vector* anchor, Vector* prediction, Vector* costs) {
         costs->entries[i] = prediction->entries[i] - anchor->entries[i];
         loss += costs->entries[i] * costs->entries[i];
     }
+    global += 1;
+    if(global%100 == 1) {
+	printf("Current loss: %f\n", loss);
+	/*for (i = 0; i < costs->size; i++) {
+ 	    printf("%f, ", costs->entries[i]);
+	}
+	printf("\n");*/
+    }
     return loss;
 }
 
+// TODO
 double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* costs) {
     // anchor, positive, negative - encodings
     // TRIPLET_ALPHA - hyperparameter, > 0
@@ -181,8 +192,8 @@ double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* 
     int i;
     double loss = 0.0;
     for (i = 0; i < anchor->size; i++) {
-        positive_dist = (anchor->entries[i] - positive->entries[i]) * (anchor->entries[i] - positive->entries[i]);
-        negative_dist = (anchor->entries[i] - negative->entries[i]) * (anchor->entries[i] - negative->entries[i]);
+        positive_dist += (anchor->entries[i] - positive->entries[i]) * (anchor->entries[i] - positive->entries[i]);
+        negative_dist += (anchor->entries[i] - negative->entries[i]) * (anchor->entries[i] - negative->entries[i]);
         loss += positive_dist;
         loss -= negative_dist;
         costs->entries[i] = positive_dist - negative_dist + TRIPLET_ALPHA;
@@ -199,14 +210,15 @@ double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* 
 
 void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, ForwardPropData* fpd) {
     if (vector_in->size != fcl->width) {
-        printf("przyps");
+	printf("%d, %d", vector_in->size, fcl->width);        
+	printf("CONV and FCL cannot be connected");
         return;
     }
     vector_out->size = vector_in->size;
 
     int w, h, d, i;
 
-    //needed by backprop
+    // needed by backprop
     for (i = 0; i < vector_in->size; i++) {
         fpd->results[0][i] = vector_in->entries[i];
         fpd->activations[0][i] = vector_in->entries[i];
@@ -223,7 +235,12 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, Forw
         for (i = 0; i < vector_out->size; i++) {
             vector_out->entries[i] = fpd->results[d + 1][i];
         }
-
+	if (global == 8000 && d == fcl->depth - 1) {
+	    int k;
+	    for (k = 0; k < vector_out->size; k++)	    
+		printf("%f, ", vector_out->entries[k]);
+	    printf("\n");
+	}
         sigmoid(vector_out->size, vector_out->entries);
 
         for (i = 0; i < vector_in->size; i++) {
@@ -317,9 +334,9 @@ void adam_optimizer(Model* model) {
 
     for (t = 1; t < NUMBER_OF_ITERATIONS; t++) {
         train(model);
-    	if(t%100 == 1) {
+    	/*if(t%100 == 1) {
       	   printf("[%f, %f, %f], \n", model->encoding.entries[0], model->encoding.entries[1], model->encoding.entries[2]);
-    	}
+    	}*/
 
         for (d = 0; d < model->fcl.depth; d++) {
             for (w = 0; w < model->fcl.width; w++) {
@@ -356,10 +373,11 @@ void adam_optimizer(Model* model) {
             }
         }
     }
-    /* printf("\nEncoding\n");
-    for (i = 0; i < 3; i++) {
+    printf("\nEncoding\n");
+    int i;
+    for (i = 0; i < model->encoding.size; i++) {
 	printf("%f, ", model->encoding.entries[i]);
-    } */
+    }
 }
 
 void print(ConvolutionalBox* convBox) {

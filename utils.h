@@ -2,23 +2,23 @@
 #define UTILS_H
 
 // podstawowe stałe
-#define MAX_VECTOR_SIZE        20
+#define MAX_VECTOR_SIZE        80
 #define MAX_FILTER_SIZE        10
 #define MAX_NUMBER_OF_FILTERS  10
-#define MAX_CONVBOX_HEIGHT     40
-#define MAX_CONVBOX_WIDTH      40
-#define MAX_CONVBOX_DEPTH      40
-#define POOL_SIZE              2
-#define MAX_FCL_HEIGHT         40
-#define MAX_FCL_WIDTH          40
-#define MAX_FCL_DEPTH          40
+#define MAX_CONVBOX_HEIGHT     100
+#define MAX_CONVBOX_WIDTH      100
+#define MAX_CONVBOX_DEPTH      10
+#define POOL_SIZE              5
+#define MAX_FCL_HEIGHT         80
+#define MAX_FCL_WIDTH          80
+#define MAX_FCL_DEPTH          10
 
 // Adam Optimizer hyperparameters
 #define BETA_1                 0.9
 #define BETA_2                 0.999
 #define EPSILON                1e-8
-#define ALPHA                  0.01
-#define NUMBER_OF_ITERATIONS   1000
+#define ALPHA                  0.001
+#define NUMBER_OF_ITERATIONS   5000
 
 // Triplet function hyperparameter
 #define TRIPLET_ALPHA          3.0
