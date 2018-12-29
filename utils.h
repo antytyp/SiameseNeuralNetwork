@@ -2,16 +2,16 @@
 #define UTILS_H
 
 // podstawowe stałe
-#define MAX_VECTOR_SIZE        80
-#define MAX_FILTER_SIZE        10
-#define MAX_NUMBER_OF_FILTERS  10
+#define MAX_VECTOR_SIZE        2400
+#define MAX_FILTER_SIZE        5
+#define MAX_NUMBER_OF_FILTERS  5
 #define MAX_CONVBOX_HEIGHT     125
 #define MAX_CONVBOX_WIDTH      125
-#define MAX_CONVBOX_DEPTH      10
-#define POOL_SIZE              5
+#define MAX_CONVBOX_DEPTH      3
+#define POOL_SIZE              2
 #define MAX_FCL_HEIGHT         80
 #define MAX_FCL_WIDTH          80
-#define MAX_FCL_DEPTH          10
+#define MAX_FCL_DEPTH          5
 
 // Adam Optimizer hyperparameters
 #define BETA_1                 0.9
@@ -88,12 +88,33 @@ typedef struct {
     FullyConnectedLayer fcl;   // trzeba wygenerowac wagi poczatkowe
     Vector encoding;           // fcl output, przyjmijmy ze to przyklad pozytywny
     // triplet shit
-    Vector anchor;
-    Vector negative;
+    Vector anchor;             // do I need that?
+    Vector negative;           // do I need that?
     Vector costs;              // cost function applied on encoding
     ForwardPropData fpd;       // needed by backprop
     BackPropData bpd;          // outputs of backprop, needed by Adam opt
 } Model;
+
+typedef struct {
+    ConvolutionalBox convBox1; // input: 125x125x3
+    Filter filter1;
+    int stride1;
+    ConvolutionalBox convBox2; // Conv2D output
+    int stride2;
+    ConvolutionalBox convBox3; // max pool output
+    Filter filter2;
+    int stride3;
+    ConvolutionalBox convBox4; // Conv2D output
+    int stride4;
+    ConvolutionalBox convBox5; // max pool output
+    Vector vector;             // flatten output of Conv layers
+    FullyConnectedLayer fcl;   
+    Vector encoding;           // fcl output
+    
+    Vector costs;              // cost function applied on encoding
+    ForwardPropData fpd;       // needed by backprop
+    BackPropData bpd;          // outputs of backprop, needed by Adam opt
+} SNN;
 
 void red();
 void green();
@@ -116,6 +137,6 @@ void adam_optimizer(Model* model);
 void matrix_times_constant(double** matrix, int m, int n, int constant);
 void matrix_squared_elementwise(double** matrix, int m, int n);
 void print(ConvolutionalBox* convBox);
-void read_csv(ConvolutionalBox* conv_boxes, int num_of_images, char* filepath);
+void read_csv(ConvolutionalBox* conv_boxes, char* filepath);
 
 #endif // UTILS_H
