@@ -5,8 +5,8 @@
 #define MAX_VECTOR_SIZE        80
 #define MAX_FILTER_SIZE        10
 #define MAX_NUMBER_OF_FILTERS  10
-#define MAX_CONVBOX_HEIGHT     100
-#define MAX_CONVBOX_WIDTH      100
+#define MAX_CONVBOX_HEIGHT     125
+#define MAX_CONVBOX_WIDTH      125
 #define MAX_CONVBOX_DEPTH      10
 #define POOL_SIZE              5
 #define MAX_FCL_HEIGHT         80
@@ -116,5 +116,6 @@ void adam_optimizer(Model* model);
 void matrix_times_constant(double** matrix, int m, int n, int constant);
 void matrix_squared_elementwise(double** matrix, int m, int n);
 void print(ConvolutionalBox* convBox);
+void read_csv(ConvolutionalBox* conv_boxes, int num_of_images, char* filepath);
 
 #endif // UTILS_H

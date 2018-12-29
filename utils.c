@@ -392,3 +392,34 @@ void print(ConvolutionalBox* convBox) {
         printf("\n");
     }
 }
+
+// reading images stored in csv file
+void read_csv(ConvolutionalBox* conv_boxes, int num_of_images, char* filepath) {
+    FILE* file;
+    file = fopen(filepath, "r");
+    if (file == NULL) printf("Failed to open this file");
+    
+    int i, j, k, l, pixel;
+    size_t len = 0;
+    char* buff = NULL;
+    for (i = 0; i < num_of_images; i++) {
+        for (j = 0; j < conv_boxes->height; j++) {
+            for (k = 0; k < conv_boxes->width; k++) {
+                for (l = 0; l < conv_boxes->depth; l++) {
+                    if (getline(&buff, &len, file) != -1) {
+	                // parsing
+		        int p = 0;
+		        while (buff[p] != ',') {
+		            p += 1;
+		        }
+		        pixel = atoi(buff + (p+1));
+                    }
+                    // normalization
+              	    conv_boxes->entries[j][k][l] = (pixel - 128) / 256.0;
+	    	}
+            }
+        }
+    }
+    
+    fclose(file);
+}
