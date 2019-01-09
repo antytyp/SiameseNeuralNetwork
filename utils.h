@@ -2,26 +2,26 @@
 #define UTILS_H
 
 // podstawowe stałe
-#define MAX_VECTOR_SIZE        2400
+#define MAX_VECTOR_SIZE        243
 #define MAX_FILTER_SIZE        5
 #define MAX_NUMBER_OF_FILTERS  5
 #define MAX_CONVBOX_HEIGHT     125
 #define MAX_CONVBOX_WIDTH      125
-#define MAX_CONVBOX_DEPTH      3
-#define POOL_SIZE              2
-#define MAX_FCL_HEIGHT         80
-#define MAX_FCL_WIDTH          80
-#define MAX_FCL_DEPTH          5
+#define MAX_CONVBOX_DEPTH      27
+#define POOL_SIZE              3
+#define MAX_FCL_HEIGHT         243
+#define MAX_FCL_WIDTH          243
+#define MAX_FCL_DEPTH          8
 
 // Adam Optimizer hyperparameters
 #define BETA_1                 0.9
 #define BETA_2                 0.999
 #define EPSILON                1e-8
 #define ALPHA                  0.001
-#define NUMBER_OF_ITERATIONS   5000
+#define NUMBER_OF_ITERATIONS   50
 
 // Triplet function hyperparameter
-#define TRIPLET_ALPHA          3.0
+#define TRIPLET_ALPHA          0.3
 
 // Struktury danych
 
@@ -87,7 +87,7 @@ typedef struct {
     Vector vector;             // flatten output of Conv layers
     FullyConnectedLayer fcl;   // trzeba wygenerowac wagi poczatkowe
     Vector encoding;           // fcl output, przyjmijmy ze to przyklad pozytywny
-    // triplet shit
+    // triplet stuff
     Vector anchor;             // do I need that?
     Vector negative;           // do I need that?
     Vector costs;              // cost function applied on encoding
@@ -97,17 +97,27 @@ typedef struct {
 
 typedef struct {
     ConvolutionalBox convBox1; // input: 125x125x3
-    Filter filter1;
-    int stride1;
-    ConvolutionalBox convBox2; // Conv2D output
-    int stride2;
+    Filter filter1;            // 3x3x3
+    int stride1;               // str = 1
+    ConvolutionalBox convBox2; // Conv2D output,123x123x9
+    int stride2;               // max pool, str = 3
     ConvolutionalBox convBox3; // max pool output
-    Filter filter2;
-    int stride3;
-    ConvolutionalBox convBox4; // Conv2D output
-    int stride4;
-    ConvolutionalBox convBox5; // max pool output
-    Vector vector;             // flatten output of Conv layers
+    Filter filter2;            // 3x3x3
+    int stride3;               // str = 1
+    ConvolutionalBox convBox4; // Conv2D output, 39x39x27
+    int stride4;               // 3x3x3
+    ConvolutionalBox convBox5; // max pool output, 13x13x27
+    Filter filter3;            // 5x5x1
+    int stride5;               // str = 1
+    ConvolutionalBox convBox6; // 9x9x27
+    int stride6;               // str 
+    ConvolutionalBox convBox7; // 3x3x27, max pool output
+    Filter filter4;            // 3x3x1
+    int stride7;               // str=3, conv2d output  
+    ConvolutionalBox convBox8; // 1x1x27, max pool output    
+    int stride8; 
+    
+    Vector vector;             // flatten output of Conv layers, 27x1
     FullyConnectedLayer fcl;   
     Vector encoding;           // fcl output
     

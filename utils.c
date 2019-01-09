@@ -90,27 +90,30 @@ void conv2D(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, Filter* 
       || (convBox->height - filter->size) % stride != 0) {
         return;
     }
+
     resultConvBox->width = (convBox->width - filter->size) / stride + 1;
     resultConvBox->height = (convBox->height - filter->size) / stride + 1;
     resultConvBox->depth = convBox->depth * filter->number_of_filters;
 
-    int w, h, d;
+    int w, h, d, dw, dh;
     for (d = 0; d < resultConvBox->depth; d++) {
         int curr_filter = d % filter->number_of_filters;
         int curr_depth = d / filter->number_of_filters;
-
-        for (h = 0; h < resultConvBox->height; h += stride) {
-            for (w = 0; w < resultConvBox->width; w += stride) {
+        dh = 0;
+        for (h = 0; h < convBox->height; h += stride) {
+            dw = 0;
+            for (w = 0; w < convBox->width; w += stride) {
                 double result = 0.0;
-
                 int i, j;
                 for (i = 0; i < filter->size; i++) {
                     for (j = 0; j < filter->size; j++) {
                         result += convBox->entries[h + i][w + j][curr_depth] * filter->entries[i][j][curr_filter];
                     }
                 }
-                resultConvBox->entries[h][w][d] = result;
+                resultConvBox->entries[dh][dw][d] = result;
+                dw += 1;
             }
+            dh += 1;
         }
     }
 }
@@ -121,17 +124,19 @@ void max_pooling(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, int
     if (stride > convBox->width || stride > convBox->height
       || (convBox->width - POOL_SIZE) % stride!= 0
       || (convBox->height - POOL_SIZE) % stride != 0) {
+        printf("MAX POOL error - dimensions don't match.\n");
         return;
     }
     resultConvBox->width = (convBox->width - POOL_SIZE) / stride + 1;
     resultConvBox->height = (convBox->height - POOL_SIZE) / stride + 1;
     resultConvBox->depth = convBox->depth;
 
-
-    int w, h, d;
-    for (d = 0; d < resultConvBox->depth; d++) {
-        for (w = 0; w < resultConvBox->width; w += stride) {
-            for (h = 0; h < resultConvBox->height; h += stride) {
+    int w, h, d, dw, dh;
+    for (d = 0; d < convBox->depth; d++) {
+        dw = 0;
+        for (w = 0; w < convBox->width; w += stride) {
+            dh = 0;
+            for (h = 0; h < convBox->height; h += stride) {
                 double result = convBox->entries[w][h][d];
 
                 int i, j;
@@ -142,8 +147,10 @@ void max_pooling(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, int
                         }
                     }
                 }
-                resultConvBox->entries[w][h][d] = result;
+                resultConvBox->entries[dw][dh][d] = result;
+                dh += 1;
             }
+            dw += 1;
         }
     }
 }
@@ -151,7 +158,7 @@ void max_pooling(ConvolutionalBox* convBox, ConvolutionalBox* resultConvBox, int
 // ConvolutionalBox -> Vector
 void flatten(ConvolutionalBox* convBox, Vector *vector) {
     vector->size = convBox->width * convBox->height * convBox->depth;
-    if (vector->size < MAX_VECTOR_SIZE) {
+    if (vector->size <= MAX_VECTOR_SIZE) {
         int i, j, k;
         int index = 0;
         for (k = 0; k < convBox->depth; k++) {
@@ -182,6 +189,30 @@ double simple_loss(Vector* anchor, Vector* prediction, Vector* costs) {
     return loss;
 }
 
+double simple_loss2(int label, Vector* prediction, Vector* costs) {
+    int i;
+    double loss = 0.0;
+    for (i = 0; i < prediction->size; i++) {
+        if (label == 0) {
+            costs->entries[i] = 1 - prediction->entries[i]; // przyblizam zdj poz do wektora jedynek
+            loss += costs->entries[i];// * costs->entries[i];
+        } else {
+            costs->entries[i] = prediction->entries[i] - 0; // przyblizam zdj neg do wektora zer
+            loss += costs->entries[i];// * costs->entries[i];
+        }
+
+    }
+    global += 1;
+    if(global%10 == 1) {
+	//printf("Current loss: %f\n", loss);
+	/*for (i = 0; i < costs->size; i++) {
+ 	    printf("%f, ", costs->entries[i]);
+	}
+	printf("\n");*/
+    }
+    return loss;
+}
+
 // TODO
 double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* costs) {
     // anchor, positive, negative - encodings
@@ -201,7 +232,7 @@ double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* 
         if (costs->entries[i] < 0) costs->entries[i] = 0.0;
     }
     loss += TRIPLET_ALPHA;
-    if (loss > 0) {
+    if (loss < 0) {
        loss = 0.0;
     }
     // printf("Current loss: %f\n", loss);
@@ -210,8 +241,8 @@ double triplet_loss(Vector* anchor, Vector* positive, Vector* negative, Vector* 
 
 void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, ForwardPropData* fpd) {
     if (vector_in->size != fcl->width) {
-	printf("%d, %d", vector_in->size, fcl->width);        
-	printf("CONV and FCL cannot be connected");
+	printf("%d, %d - ", vector_in->size, fcl->width);        
+	printf("CONV and FCL cannot be connected\n");
         return;
     }
     vector_out->size = vector_in->size;
@@ -235,7 +266,7 @@ void dense(Vector* vector_in, FullyConnectedLayer* fcl, Vector* vector_out, Forw
         for (i = 0; i < vector_out->size; i++) {
             vector_out->entries[i] = fpd->results[d + 1][i];
         }
-	if (global == 8000 && d == fcl->depth - 1) {
+	if (0) {//global == 8000 && d == fcl->depth - 1) {
 	    int k;
 	    for (k = 0; k < vector_out->size; k++)	    
 		printf("%f, ", vector_out->entries[k]);
@@ -261,8 +292,8 @@ void backpropagation(double m, ForwardPropData* fpd, BackPropData* bpd,
         for (h = 0; h < fpd->height; h++) {
             d_results[h] = prediction->entries[h] * fpd->results[l + 1][h];
         }
-
-        for (h = 0; h < fpd->height; h++) {
+        
+	for (h = 0; h < fpd->height; h++) {
             for (w = 0; w < fpd->height; w++) {
                 bpd->d_weights[h][w][l] = 1 / m * d_results[h] * fpd->activations[l][w];
             }
@@ -376,7 +407,7 @@ void adam_optimizer(Model* model) {
     printf("\nEncoding\n");
     int i;
     for (i = 0; i < model->encoding.size; i++) {
-	printf("%f, ", model->encoding.entries[i]);
+        printf("%f, ", model->encoding.entries[i]);
     }
 }
 
